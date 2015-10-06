@@ -1,4 +1,5 @@
 import json
+import time
 
 INPUT_FILE = '00.json'
 OUTPUT_FILE = 'geo00.json'
@@ -10,7 +11,7 @@ def convert_to_geostrike(raw_strike):
                 "coordinates": [raw_strike["lat"], raw_strike["lon"]]},
             "properties": {
                 "name": "Strike",
-                "time": raw_strike["time"]}}
+                "time": time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(raw_strike["time"]/1000000000))}}
 
 geo_strikes = []
 with open(INPUT_FILE, 'rt') as input_file:
