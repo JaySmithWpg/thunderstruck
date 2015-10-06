@@ -8,7 +8,7 @@ def convert_to_geostrike(raw_strike):
     return {"type": "Feature",
             "geometry": {
                 "type": "Point",
-                "coordinates": [raw_strike["lat"], raw_strike["lon"]]},
+                "coordinates": [raw_strike["lon"], raw_strike["lat"]]},
             "properties": {
                 "name": "Strike",
                 "time": time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(raw_strike["time"]/1000000000))}}
