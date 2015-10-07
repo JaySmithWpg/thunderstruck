@@ -1,27 +1,108 @@
 import json
 import time
+import datetime
+import gzip
+import Queue
+import urllib
+import urllib2
+import threading
 
-INPUT_FILE = '00.json'
-OUTPUT_FILE = 'geo00.json'
+USERNAME = "xxx"
+PASSWORD = "xxx"
+START_DATE = datetime.datetime(2015, 8, 1, 0)
+END_DATE = datetime.datetime(2015, 8, 2, 0)
+OUTPUT_FILE = 'geo.gz'
+DOWNLOAD_THREADS = 3
+PARSE_THREADS = 4
+DOWNLOAD_PATH = "http://data.blitzortung.org/Data_1/" + \
+                "Protected/Strokes/{year}/{month:0>2d}" + \
+                "/{day:0>2d}/{hour:0>2d}/{minute:0>2d}.json.gz"
+
+download_queue = Queue.Queue()
+downloaded_files = Queue.Queue()
+strikes = []
+
+# create a password manager
+password_mgr = urllib2.HTTPPasswordMgrWithDefaultRealm()
+password_mgr.add_password(None, 'http://data.blitzortung.org', USERNAME, PASSWORD)
+handler = urllib2.HTTPBasicAuthHandler(password_mgr)
+opener = urllib2.build_opener(handler)
+urllib2.install_opener(opener)
 
 def convert_to_geostrike(raw_strike):
+    strike = json.loads(raw_strike)
+    strike_time = time.localtime(strike["time"]/1000000000)
     return {"type": "Feature",
             "geometry": {
                 "type": "Point",
-                "coordinates": [raw_strike["lon"], raw_strike["lat"]]},
+                "coordinates": [strike["lon"], strike["lat"]]},
             "properties": {
                 "name": "Strike",
-                "time": time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(raw_strike["time"]/1000000000))}}
+                "time": time.strftime('%Y-%m-%d %H:%M:%S', strike_time)}}
 
-geo_strikes = []
-with open(INPUT_FILE, 'rt') as input_file:
-    for strike_data in input_file:
-        raw_strike = json.loads(strike_data)
-        geo_strikes.append(convert_to_geostrike(raw_strike))
+def parse_strikes(input_file):
+    with gzip.open(input_file, 'r') as f:
+        for strike_data in f:
+            strikes.append(convert_to_geostrike(strike_data))
 
-geo_file = {"type": "FeatureCollection",
-            "features": geo_strikes}
+def save_output(geo_strikes):
+    geo_file = {"type": "FeatureCollection", "features": geo_strikes}
+    with gzip.open(OUTPUT_FILE, 'w') as f:
+        f.write(json.dumps(geo_file))
 
-with open(OUTPUT_FILE, 'wt') as output_file:
-    output_file.write(json.dumps(geo_file))
+def time_range(start, end):
+    date_list = []
+    while start <= end:
+        date_list.append(start)
+        start = start + datetime.timedelta(minutes=10)
+    return date_list
+
+def download_file(strike_time):
+    file_name = str(strike_time) + '.gz'
+    url = DOWNLOAD_PATH.format(year=strike_time.year,
+                               month=strike_time.month,
+                               day=strike_time.day,
+                               hour=strike_time.hour,
+                               minute=strike_time.minute)
+    print(url)
+    response = urllib2.urlopen(url)
+    data = response.read()
+    response.close()
+    with open(file_name, 'wb') as output:
+        output.write(data)
+    downloaded_files.put(file_name)
+
+def download_worker():
+    while download_queue.qsize() > 0:
+        strike_time = download_queue.get(block=False)
+        download_file(strike_time)
+        download_queue.task_done()
+
+def parse_worker():
+    while downloaded_files.qsize() > 0:
+        f = downloaded_files.get(block=False)
+        parse_strikes(f)
+        downloaded_files.task_done()
+
+if __name__ == "__main__":
+    for t in time_range(START_DATE, END_DATE):
+        download_queue.put(t)
+
+    download_workers = [threading.Thread(target=download_worker) for i in range(DOWNLOAD_THREADS)]
+    for t in download_workers:
+        t.daemon = True
+        t.start()
+
+    for t in download_workers:
+        t.join()
+
+    parse_workers = [threading.Thread(target=parse_worker) for i in range(PARSE_THREADS)]
+    for t in parse_workers:
+        t.daemon = True
+        t.start()
+
+    for t in parse_workers:
+        t.join()
+
+    save_output(strikes)
 
