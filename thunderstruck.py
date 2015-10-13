@@ -3,7 +3,6 @@ import time
 import datetime
 import gzip
 import Queue
-#import urllib
 import urllib2
 import threading
 import os.path
