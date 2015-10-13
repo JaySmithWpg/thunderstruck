@@ -3,9 +3,10 @@ import time
 import datetime
 import gzip
 import Queue
-import urllib
+#import urllib
 import urllib2
 import threading
+import os.path
 
 USERNAME = "xxx"
 PASSWORD = "xxx"
@@ -14,9 +15,9 @@ END_DATE = datetime.datetime(2015, 8, 2, 0)
 OUTPUT_FILE = 'geo.gz'
 DOWNLOAD_THREADS = 3
 PARSE_THREADS = 4
-DOWNLOAD_PATH = "http://data.blitzortung.org/Data_1/" + \
+DOWNLOAD_PATH = "http://data.blitzortung.org/Data_3/" + \
                 "Protected/Strokes/{year}/{month:0>2d}" + \
-                "/{day:0>2d}/{hour:0>2d}/{minute:0>2d}.json.gz"
+                "/{day:0>2d}/{hour:0>2d}/{minute:0>2d}.json"
 
 download_queue = Queue.Queue()
 downloaded_files = Queue.Queue()
@@ -64,13 +65,42 @@ def download_file(strike_time):
                                day=strike_time.day,
                                hour=strike_time.hour,
                                minute=strike_time.minute)
-    print(url)
-    response = urllib2.urlopen(url)
-    data = response.read()
-    response.close()
-    with open(file_name, 'wb') as output:
-        output.write(data)
-    downloaded_files.put(file_name)
+
+    if os.path.isfile(file_name):
+        print("File Exists: " + file_name)
+        downloaded_files.put(file_name)
+    else:
+        is_gzip = True
+        data = None
+
+        #first see if there's a gz archive
+        try:
+            response = urllib2.urlopen(url + ".gz")
+            data = response.read()
+            response.close()
+        except urllib2.HTTPError, err:
+            if err.code == 404:
+                try:
+                    #It might be a newer uncompressed file
+                    time.sleep(5) #Server is touchy about rapid requests
+                    response = urllib2.urlopen(url)
+                    data = response.read()
+                    response.close()
+                    is_gzip = False
+                except urllib2.HTTPError:
+                    print ("Download Failed: " + url)
+            else:
+                print("Download Failed: " + url + ".gz")
+
+        if data:
+            if is_gzip: #file is already compressed
+                with open(file_name, 'wb') as output:
+                    output.write(data)
+            else: #file needs to be compressed
+                with gzip.open(file_name, 'wb') as output:
+                    output.write(data)
+            print("Downloaded: " + url + (".gz" if is_gzip else ''))
+            downloaded_files.put(file_name)
 
 def download_worker():
     while download_queue.qsize() > 0:
@@ -96,6 +126,7 @@ if __name__ == "__main__":
     for t in download_workers:
         t.join()
 
+    print("Processing downloaded files...")
     parse_workers = [threading.Thread(target=parse_worker) for i in range(PARSE_THREADS)]
     for t in parse_workers:
         t.daemon = True
