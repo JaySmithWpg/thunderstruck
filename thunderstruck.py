@@ -2,8 +2,8 @@ import json
 import time
 import datetime
 import gzip
-import Queue
-import urllib2
+import queue
+import urllib.request, urllib.error, urllib.parse
 import threading
 import os.path
 
@@ -18,16 +18,16 @@ DOWNLOAD_PATH = "http://data.blitzortung.org/Data_3/" + \
                 "Protected/Strokes/{year}/{month:0>2d}" + \
                 "/{day:0>2d}/{hour:0>2d}/{minute:0>2d}.json"
 
-download_queue = Queue.Queue()
-downloaded_files = Queue.Queue()
+download_queue = queue.Queue()
+downloaded_files = queue.Queue()
 strikes = []
 
 # create a password manager
-password_mgr = urllib2.HTTPPasswordMgrWithDefaultRealm()
+password_mgr = urllib.request.HTTPPasswordMgrWithDefaultRealm()
 password_mgr.add_password(None, 'http://data.blitzortung.org', USERNAME, PASSWORD)
-handler = urllib2.HTTPBasicAuthHandler(password_mgr)
-opener = urllib2.build_opener(handler)
-urllib2.install_opener(opener)
+handler = urllib.request.HTTPBasicAuthHandler(password_mgr)
+opener = urllib.request.build_opener(handler)
+urllib.request.install_opener(opener)
 
 def convert_to_geostrike(raw_strike):
     strike = json.loads(raw_strike)
@@ -74,20 +74,20 @@ def download_file(strike_time):
 
         #first see if there's a gz archive
         try:
-            response = urllib2.urlopen(url + ".gz")
+            response = urllib.request.urlopen(url + ".gz")
             data = response.read()
             response.close()
-        except urllib2.HTTPError, err:
+        except urllib.error.HTTPError as err:
             if err.code == 404:
                 try:
                     #It might be a newer uncompressed file
                     time.sleep(5) #Server is touchy about rapid requests
-                    response = urllib2.urlopen(url)
+                    response = urllib.request.urlopen(url)
                     data = response.read()
                     response.close()
                     is_gzip = False
-                except urllib2.HTTPError:
-                    print ("Download Failed: " + url)
+                except urllib.error.HTTPError:
+                    print("Download Failed: " + url)
             else:
                 print("Download Failed: " + url + ".gz")
 
