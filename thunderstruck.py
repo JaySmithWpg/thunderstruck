@@ -43,12 +43,12 @@ def convert_to_geostrike(raw_strike):
 def parse_strikes(input_file):
     with gzip.open(input_file, 'r') as f:
         for strike_data in f:
-            strikes.append(convert_to_geostrike(strike_data))
+            strikes.append(convert_to_geostrike(strike_data.decode("utf-8")))
 
 def save_output(geo_strikes):
     geo_file = {"type": "FeatureCollection", "features": geo_strikes}
     with gzip.open(OUTPUT_FILE, 'w') as f:
-        f.write(json.dumps(geo_file))
+        f.write(json.dumps(geo_file).encode("utf-8"))
 
 def time_range(start, end):
     date_list = []
