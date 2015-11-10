@@ -59,6 +59,8 @@ def time_range(start, end):
 
 def download_file(strike_time):
     file_name = str(strike_time) + '.gz'
+    file_name = file_name.replace(":", "-") #for windows files
+
     url = DOWNLOAD_PATH.format(year=strike_time.year,
                                month=strike_time.month,
                                day=strike_time.day,
