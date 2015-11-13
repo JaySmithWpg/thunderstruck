@@ -46,9 +46,11 @@ def parse_strikes(input_file):
             strikes.append(convert_to_geostrike(strike_data.decode("utf-8")))
 
 def save_output(geo_strikes):
+    print("Writing to disk...")
     geo_file = {"type": "FeatureCollection", "features": geo_strikes}
     with gzip.open(OUTPUT_FILE, 'w') as f:
-        f.write(json.dumps(geo_file).encode("utf-8"))
+        for chunk in json.JSONEncoder().iterencode(geo_file):
+            f.write(chunk.encode("utf-8"))
 
 def time_range(start, end):
     date_list = []
