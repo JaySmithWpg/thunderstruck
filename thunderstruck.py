@@ -45,7 +45,7 @@ def parse_strikes(input_file):
         with gzip.open(input_file, 'r') as f:
             for strike_data in f:
                 strikes.append(convert_to_geostrike(strike_data.decode("utf-8")))
-    except e as error:
+    except:
         print ("Unable to parse " + input_file)
 
 def save_output(geo_strikes):
