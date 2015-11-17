@@ -47,6 +47,7 @@ def parse_strikes(input_file):
                 strikes.append(convert_to_geostrike(strike_data.decode("utf-8")))
     except:
         print ("Unable to parse " + input_file)
+        raise
 
 def save_output(geo_strikes):
     print("Writing to disk...")
