@@ -41,9 +41,12 @@ def convert_to_geostrike(raw_strike):
                 "time": time.strftime('%Y-%m-%d %H:%M:%S', strike_time)}}
 
 def parse_strikes(input_file):
-    with gzip.open(input_file, 'r') as f:
-        for strike_data in f:
-            strikes.append(convert_to_geostrike(strike_data.decode("utf-8")))
+    try:
+        with gzip.open(input_file, 'r') as f:
+            for strike_data in f:
+                strikes.append(convert_to_geostrike(strike_data.decode("utf-8")))
+    except e as error:
+        print ("Unable to parse " + input_file)
 
 def save_output(geo_strikes):
     print("Writing to disk...")
